@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkTree Pro · hide preview row when empty</title>
+  <!-- QR Code library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f17;
+      color: #e0e0ff;
+      min-height: 100dvh;
+      padding: 32px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      transition: background-image 0.2s;
+    }
+    body.public-mode {
+      background-size: cover !important;
+      background-position: center !important;
+      background-attachment: fixed !important;
+    }
+    .card {
+      width: 100%;
+      max-width: 550px;
+      background: #1a1f2e;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      font-size: 1.65rem;
+      color: #a5b4fc;
+    }
+    .label-text {
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+    .upload-group {
+      display: flex;
+      gap: 16px;
+      margin: 8px 0 16px;
+      flex-wrap: wrap;
+    }
+    .upload-item {
+      flex: 1;
+      min-width: 150px;
+    }
+    .upload-item .label-text {
+      margin-top: 0;
+      margin-bottom: 6px;
+    }
+    .upload-item input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      background: #2d3348;
+      color: #cbd5e1;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    .preview-row {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      min-height: 80px;
+    }
+    .preview-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .preview-label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      display: none;
+    }
+    .photo-preview, .bg-preview {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #6366f1;
+      display: none;
+    }
+    .bg-preview {
+      border-radius: 8px;
+      width: 90px;
+      height: 60px;
+      border: 2px solid #818cf8;
+      object-fit: cover;
+    }
+    
+    input[type="text"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 14px 16px;
+      margin: 4px 0 8px;
+      background: #2d3348;
+      border: 1px solid #4b5563;
+      border-radius: 10px;
+      color: #e0e0ff;
+      font-size: 1rem;
+    }
+    select {
+      cursor: pointer;
+      background: #2d3348 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a5b4fc' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 16px center;
+      appearance: none;
+    }
+    input::placeholder, textarea::placeholder {
+      color: #94a3b8;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #add-link-btn {
+      background: #4f46e5;
+      color: white;
+    }
+    #add-link-btn:hover { background: #4338ca; }
+    
+    .action-row {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0 8px;
+      flex-wrap: wrap;
+    }
+    .action-row button {
+      margin: 0;
+      padding: 12px 6px;
+      font-size: 0.9rem;
+      flex: 1 1 0;
+      background: #2d3348;
+      color: #a5b4fc;
+      border: 1px solid #4b5563;
+      white-space: nowrap;
+    }
+    .action-row button:hover {
+      background: #3a4055;
+    }
+    #view-toggle-btn { background: #4f46e5; color: white; }
+    #view-toggle-btn:hover { background: #4338ca; }
+
+    .link-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: #252b3d;
+      padding: 12px;
+      border-radius: 12px;
+    }
+    .link-row select {
+      width: 140px;
+      margin: 0;
+      padding: 12px 30px 12px 12px;
+    }
+    .link-row .link-url {
+      flex: 2;
+      min-width: 180px;
+      margin: 0;
+    }
+    .custom-title-field {
+      flex: 1;
+      min-width: 130px;
+      margin: 0;
+    }
+    .remove-btn {
+      background: #ef4444 !important;
+      color: white;
+      padding: 12px 16px !important;
+      width: auto;
+      margin: 0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .remove-btn:hover { background: #dc2626 !important; }
+    
+    .section-title {
+      color: #cbd5e1;
+      font-size: 1.15rem;
+      margin: 24px 0 12px;
+      font-weight: 600;
+    }
+    
+    /* QR container */
+    .qr-container {
+      margin: 20px 0 10px;
+      text-align: center;
+      background: #2d3348;
+      padding: 20px;
+      border-radius: 12px;
+      display: none;
+    }
+    .qr-container.show {
+      display: block;
+    }
+    .qr-container canvas {
+      background: white;
+      padding: 12px;
+      border-radius: 12px;
+      max-width: 200px;
+      margin: 0 auto;
+    }
+    .qr-container p {
+      color: #94a3b8;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+    
+    #notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 999px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    #notification.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Public view styles */
+    #public-view {
+      text-align: center;
+      display: none;
+      position: relative;
+      background: rgba(26, 31, 46, 0.85);
+      backdrop-filter: blur(4px);
+    }
+    #public-view img {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #6366f1;
+      margin-bottom: 20px;
+    }
+    #public-view h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.7);
+    }
+    #public-view .motto {
+      color: #f0f0ff;
+      font-size: 1.15rem;
+      margin-bottom: 32px;
+      text-shadow: 0 1px 4px black;
+    }
+    .link-btn {
+      display: block;
+      background: #4f46e5;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 16px;
+      margin: 12px 0;
+      border-radius: 12px;
+      transition: all 0.18s;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .link-btn:hover {
+      background: #4338ca;
+      transform: translateY(-2px);
+    }
+    #public-footer {
+      margin-top: 30px;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body id="main-body">
+
+<div class="card" id="editor">
+  <h2>✨ LinkTree Pro</h2>
+
+  <!-- Upload section with labels -->
+  <div class="upload-group">
+    <div class="upload-item">
+      <div class="label-text">🖼️ Avatar</div>
+      <input type="file" id="photo-input" accept="image/*">
+    </div>
+    <div class="upload-item">
+      <div class="label-text">🌄 Background</div>
+      <input type="file" id="bg-input" accept="image/*">
+    </div>
+  </div>
+
+  <!-- Previews with labels - entire row hidden when both empty -->
+  <div class="preview-row" id="preview-row">
+    <div class="preview-item">
+      <img id="photo-preview" class="photo-preview" src="" alt="Avatar preview">
+      <span class="preview-label" id="photo-label">avatar preview</span>
+    </div>
+    <div class="preview-item">
+      <img id="bg-preview" class="bg-preview" src="" alt="Background preview">
+      <span class="preview-label" id="bg-label">bg preview</span>
+    </div>
+  </div>
+
+  <!-- Text inputs with labels -->
+  <div class="label-text">👤 Full Name</div>
+  <input type="text" id="name" placeholder="e.g. Jane Smith">
+
+  <div class="label-text">📝 Motto / Tagline</div>
+  <textarea id="motto" rows="2" placeholder="What drives you..."></textarea>
+
+  <div class="section-title">🔗 Social Links</div>
+  <div id="links-container"></div>
+
+  <button id="add-link-btn">+ Add Link</button>
+
+  <!-- Action row -->
+  <div class="action-row">
+    <button id="copy-live-btn">📋 Copy Live URL</button>
+    <button id="copy-edit-btn">✏️ Copy Edit URL</button>
+    <button id="view-toggle-btn">👁️ View / Edit</button>
+  </div>
+
+  <!-- QR Code container -->
+  <div id="qr-container" class="qr-container">
+    <p>🔲 Scan to visit live page</p>
+    <div id="qr-code"></div>
+  </div>
+</div>
+
+<div class="card" id="public-view">
+  <img id="display-photo" src="" alt="Profile">
+  <h1 id="display-name"></h1>
+  <div class="motto" id="display-motto"></div>
+  <div id="display-links"></div>
+  <div id="public-footer">✨ LinkTree · live page</div>
+</div>
+
+<div id="notification"></div>
+
+<script>
+// ─── State ──────────────────────────────────────
+let data = { 
+  photo: '', 
+  bg: '', 
+  name: '', 
+  motto: '', 
+  links: [] 
+};
+
+// Platform options
+const PLATFORMS = [
+  'Custom URL',
+  'Facebook',
+  'YouTube',
+  'Twitter X',
+  'Instagram',
+  'TikTok',
+  'Pinterest',
+  'LinkedIn',
+  'GitHub',
+  'Website'
+];
+
+// ─── Elements ───────────────────────────────────
+const bodyEl      = document.getElementById('main-body');
+const editor      = document.getElementById('editor');
+const publicView  = document.getElementById('public-view');
+const photoInput  = document.getElementById('photo-input');
+const bgInput     = document.getElementById('bg-input');
+const photoPreview= document.getElementById('photo-preview');
+const bgPreview   = document.getElementById('bg-preview');
+const photoLabel  = document.getElementById('photo-label');
+const bgLabel     = document.getElementById('bg-label');
+const previewRow  = document.getElementById('preview-row');
+const nameInput   = document.getElementById('name');
+const mottoInput  = document.getElementById('motto');
+const linksCont   = document.getElementById('links-container');
+const addBtn      = document.getElementById('add-link-btn');
+const copyLiveBtn = document.getElementById('copy-live-btn');
+const copyEditBtn = document.getElementById('copy-edit-btn');
+const viewToggleBtn= document.getElementById('view-toggle-btn');
+const qrContainer = document.getElementById('qr-container');
+const qrDiv       = document.getElementById('qr-code');
+const notifyEl    = document.getElementById('notification');
+
+// ─── Helper to update preview visibility ────────
+function updatePreviews() {
+  let hasPhoto = false;
+  let hasBg = false;
+  
+  // Handle avatar preview
+  if (data.photo && data.photo !== '') {
+    photoPreview.src = data.photo;
+    photoPreview.style.display = 'block';
+    photoLabel.style.display = 'block';
+    hasPhoto = true;
+  } else {
+    photoPreview.src = '';
+    photoPreview.style.display = 'none';
+    photoLabel.style.display = 'none';
+    photoInput.value = '';
+  }
+  
+  // Handle background preview
+  if (data.bg && data.bg !== '') {
+    bgPreview.src = data.bg;
+    bgPreview.style.display = 'block';
+    bgLabel.style.display = 'block';
+    hasBg = true;
+  } else {
+    bgPreview.src = '';
+    bgPreview.style.display = 'none';
+    bgLabel.style.display = 'none';
+    bgInput.value = '';
+  }
+  
+  // Hide the entire preview row if both are empty
+  if (!hasPhoto && !hasBg) {
+    previewRow.style.display = 'none';
+  } else {
+    previewRow.style.display = 'flex';
+  }
+}
+
+// ─── Helpers ────────────────────────────────────
+function notify(msg, isError = false) {
+  notifyEl.textContent = msg;
+  notifyEl.classList.add('visible');
+  if (isError) {
+    notifyEl.style.background = '#ef4444';
+  } else {
+    notifyEl.style.background = '#10b981';
+  }
+  setTimeout(() => {
+    notifyEl.classList.remove('visible');
+  }, 2200);
+}
+
+function escape(s = '') {
+  if (s === undefined || s === null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'} [c]));
+}
+
+// reads current DOM fields into data.links
+function syncLinksFromForm() {
+  const freshLinks = [];
+  document.querySelectorAll('.link-row').forEach(row => {
+    const platformSelect = row.querySelector('select');
+    const urlInput = row.querySelector('.link-url');
+    const customInput = row.querySelector('.custom-title-field');
+    
+    if (platformSelect && urlInput) {
+      const platform = platformSelect.value;
+      let title = platform;
+      
+      if (platform === 'Custom URL' && customInput) {
+        title = customInput.value.trim() || 'Custom';
+      } else if (platform !== 'Custom URL') {
+        title = platform;
+      }
+      
+      freshLinks.push({ 
+        platform: platform,
+        title: title,
+        url: urlInput.value,
+        customTitle: customInput ? customInput.value : ''
+      });
+    }
+  });
+  data.links = freshLinks;
+}
+
+// render from data.links
+function renderLinks() {
+  linksCont.innerHTML = '';
+  data.links.forEach((link, idx) => {
+    const div = document.createElement('div');
+    div.className = 'link-row';
+    
+    let selectHtml = '<select class="platform-select" data-idx="' + idx + '">';
+    PLATFORMS.forEach(p => {
+      const selected = (link.platform === p || (p === 'Custom URL' && !link.platform)) ? 'selected' : '';
+      selectHtml += `<option value="${escape(p)}" ${selected}>${escape(p)}</option>`;
+    });
+    selectHtml += '</select>';
+    
+    let urlInput = `<input type="url" class="link-url" placeholder="https://..." value="${escape(link.url || '')}">`;
+    
+    let customField = '';
+    if (link.platform === 'Custom URL') {
+      customField = `<input type="text" class="custom-title-field" placeholder="Button text" value="${escape(link.customTitle || link.title || '')}">`;
+    }
+    
+    const removeBtn = `<button class="remove-btn" data-idx="${idx}">✕</button>`;
+    
+    div.innerHTML = selectHtml + urlInput + customField + removeBtn;
+    linksCont.appendChild(div);
+  });
+  
+  // Add change listeners to selects
+  document.querySelectorAll('.platform-select').forEach(select => {
+    select.addEventListener('change', function(e) {
+      const row = this.closest('.link-row');
+      const isCustom = this.value === 'Custom URL';
+      const existingCustom = row.querySelector('.custom-title-field');
+      
+      if (isCustom && !existingCustom) {
+        const urlField = row.querySelector('.link-url');
+        const customInput = document.createElement('input');
+        customInput.type = 'text';
+        customInput.className = 'custom-title-field';
+        customInput.placeholder = 'Button text';
+        customInput.value = '';
+        urlField.insertAdjacentElement('afterend', customInput);
+      } else if (!isCustom && existingCustom) {
+        existingCustom.remove();
+      }
+      syncLinksFromForm();
+    });
+  });
+}
+
+// update data from all inputs
+function syncFullData() {
+  data.name = nameInput.value.trim();
+  data.motto = mottoInput.value.trim();
+  syncLinksFromForm();
+}
+
+// ─── Compression ────────────────────────────────
+async function compress(str) {
+  try {
+    const bytes = new TextEncoder().encode(str);
+    const cs = new CompressionStream('deflate-raw');
+    const writer = cs.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const buf = await new Response(cs.readable).arrayBuffer();
+    return btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  } catch (err) {
+    console.error('Compression error:', err);
+    throw err;
+  }
+}
+
+async function decompress(b64) {
+  try {
+    b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const bin = atob(b64);
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const buf = await new Response(ds.readable).arrayBuffer();
+    return new TextDecoder().decode(buf);
+  } catch (err) {
+    console.error('Decompression error:', err);
+    throw err;
+  }
+}
+
+async function generateHashFromData() {
+  syncFullData();
+  
+  // Create a clean copy of data to avoid circular references
+  const cleanData = {
+    photo: data.photo || '',
+    bg: data.bg || '',
+    name: data.name || '',
+    motto: data.motto || '',
+    links: (data.links || []).map(link => ({
+      platform: link.platform || 'Custom URL',
+      title: link.title || '',
+      url: link.url || '',
+      customTitle: link.customTitle || ''
+    }))
+  };
+  
+  try {
+    const json = JSON.stringify(cleanData);
+    return await compress(json);
+  } catch (err) {
+    console.error('Hash generation error:', err);
+    throw err;
+  }
+}
+
+// ─── URL Building ───────────────────────────────
+async function buildLiveUrl() {
+  try {
+    const hash = await generateHashFromData();
+    return window.location.origin + window.location.pathname + '#' + hash;
+  } catch (err) {
+    console.error('Live URL error:', err);
+    throw err;
+  }
+}
+
+async function buildEditUrl() {
+  try {
+    const hash = await generateHashFromData();
+    return window.location.origin + window.location.pathname + '?action=edit#' + hash;
+  } catch (err) {
+    console.error('Edit URL error:', err);
+    throw err;
+  }
+}
+
+// ─── QR Generation ──────────────────────────────
+async function generateQR(url) {
+  try {
+    qrDiv.innerHTML = '';
+    await QRCode.toCanvas(qrDiv, url, {
+      width: 200,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+    qrContainer.classList.add('show');
+    return true;
+  } catch (err) {
+    console.error('QR error:', err);
+    qrContainer.classList.remove('show');
+    return false;
+  }
+}
+
+// ─── Copy to clipboard function ─────────────────
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    console.log('Clipboard API failed, trying fallback');
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return success;
+    } catch (fallbackErr) {
+      console.error('Fallback copy failed:', fallbackErr);
+      return false;
+    }
+  }
+}
+
+// ─── Actions ────────────────────────────────────
+function addNewLink() {
+  syncLinksFromForm();
+  data.links.push({ platform: 'Custom URL', title: '', url: '', customTitle: '' });
+  renderLinks();
+  setTimeout(() => {
+    const lastRow = linksCont.lastElementChild;
+    if (lastRow) {
+      const urlField = lastRow.querySelector('.link-url');
+      if (urlField) urlField.focus();
+    }
+  }, 30);
+}
+
+async function copyLive() {
+  syncFullData();
+  if (!data.name && data.links.length === 0 && !data.photo) {
+    notify("Add some content first", true);
+    return;
+  }
+  
+  try {
+    const url = await buildLiveUrl();
+    const copied = await copyToClipboard(url);
+    await generateQR(url);
+    
+    if (copied) {
+      notify("✅ Live URL copied & QR generated");
+    } else {
+      notify("📱 QR generated (copy manually)", false);
+    }
+  } catch (err) {
+    console.error('Copy live error:', err);
+    notify("❌ Failed to generate URL - please try again", true);
+  }
+}
+
+async function copyEdit() {
+  syncFullData();
+  if (!data.name && data.links.length === 0 && !data.photo) {
+    notify("Add some content first", true);
+    return;
+  }
+  
+  try {
+    const url = await buildEditUrl();
+    const copied = await copyToClipboard(url);
+    const liveUrl = await buildLiveUrl();
+    await generateQR(liveUrl);
+    
+    if (copied) {
+      notify("✅ Edit URL copied & QR generated");
+    } else {
+      notify("📱 QR generated for live page", false);
+    }
+  } catch (err) {
+    console.error('Copy edit error:', err);
+    notify("❌ Failed to generate URL - please try again", true);
+  }
+}
+
+async function toggleView() {
+  if (editor.style.display === 'none') {
+    // Switch to editor mode
+    editor.style.display = 'block';
+    publicView.style.display = 'none';
+    bodyEl.classList.remove('public-mode');
+    bodyEl.style.backgroundImage = '';
+    
+    nameInput.value = data.name || '';
+    mottoInput.value = data.motto || '';
+    updatePreviews();
+    renderLinks();
+    
+    const hash = window.location.hash;
+    window.history.replaceState(null, '', window.location.pathname + '?action=edit' + hash);
+    
+    try {
+      const liveUrl = await buildLiveUrl();
+      await generateQR(liveUrl);
+    } catch (err) {
+      console.error('QR generation error:', err);
+    }
+  } else {
+    syncFullData();
+    if (!data.name && data.links.length === 0) {
+      notify("Nothing to preview", true);
+      return;
+    }
+    await showPublicView();
+    const hash = window.location.hash;
+    window.history.replaceState(null, '', window.location.pathname + hash);
+  }
+}
+
+async function showPublicView() {
+  syncFullData();
+  editor.style.display = 'none';
+  publicView.style.display = 'block';
+  
+  if (data.bg) {
+    bodyEl.style.backgroundImage = `url('${data.bg}')`;
+    bodyEl.classList.add('public-mode');
+  } else {
+    bodyEl.style.backgroundImage = '';
+    bodyEl.classList.remove('public-mode');
+  }
+
+  document.getElementById('display-photo').src = data.photo || 'https://via.placeholder.com/110?text=Photo';
+  document.getElementById('display-name').textContent = data.name || 'No Name';
+  document.getElementById('display-motto').textContent = data.motto || '';
+
+  const linksArea = document.getElementById('display-links');
+  linksArea.innerHTML = '';
+  data.links.forEach(l => {
+    if (l.url && l.url.trim()) {
+      const a = document.createElement('a');
+      a.className = 'link-btn';
+      a.href = l.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = l.title || l.platform || 'Link';
+      linksArea.appendChild(a);
+    }
+  });
+  
+  try {
+    const liveUrl = await buildLiveUrl();
+    await generateQR(liveUrl);
+  } catch (err) {
+    console.error('QR generation error:', err);
+  }
+}
+
+// ─── Load from URL ──────────────────────────────
+async function loadFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const isEdit = params.get('action') === 'edit';
+
+  if (!window.location.hash) {
+    editor.style.display = 'block';
+    publicView.style.display = 'none';
+    bodyEl.classList.remove('public-mode');
+    bodyEl.style.backgroundImage = '';
+    if (data.links.length === 0) {
+      data.links = [{ platform: 'Custom URL', title: '', url: '', customTitle: '' }];
+    }
+    updatePreviews();
+    renderLinks();
+    return;
+  }
+
+  try {
+    const hash = window.location.hash.slice(1);
+    const raw = await decompress(hash);
+    const parsed = JSON.parse(raw);
+    
+    // Safely merge parsed data
+    data = {
+      photo: parsed.photo || '',
+      bg: parsed.bg || '',
+      name: parsed.name || '',
+      motto: parsed.motto || '',
+      links: Array.isArray(parsed.links) ? parsed.links : []
+    };
+    
+    nameInput.value = data.name || '';
+    mottoInput.value = data.motto || '';
+    updatePreviews();
+    renderLinks();
+    
+    if (isEdit) {
+      editor.style.display = 'block';
+      publicView.style.display = 'none';
+      bodyEl.classList.remove('public-mode');
+      bodyEl.style.backgroundImage = '';
+      
+      try {
+        const liveUrl = await buildLiveUrl();
+        await generateQR(liveUrl);
+      } catch (err) {
+        console.error('QR generation error:', err);
+      }
+    } else {
+      await showPublicView();
+    }
+  } catch (err) {
+    console.error('Load error:', err);
+    notify('Invalid link data', true);
+    editor.style.display = 'block';
+    publicView.style.display = 'none';
+    bodyEl.classList.remove('public-mode');
+    bodyEl.style.backgroundImage = '';
+    data = { photo: '', bg: '', name: '', motto: '', links: [{ platform: 'Custom URL', title: '', url: '', customTitle: '' }] };
+    updatePreviews();
+    renderLinks();
+  }
+}
+
+// ─── Event Listeners ────────────────────────────
+photoInput.onchange = e => {
+  const file = e.target.files?.[0];
+  if (!file) {
+    data.photo = '';
+    updatePreviews();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    data.photo = ev.target.result;
+    updatePreviews();
+  };
+  reader.readAsDataURL(file);
+};
+
+bgInput.onchange = e => {
+  const file = e.target.files?.[0];
+  if (!file) {
+    data.bg = '';
+    updatePreviews();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    data.bg = ev.target.result;
+    updatePreviews();
+  };
+  reader.readAsDataURL(file);
+};
+
+addBtn.onclick = addNewLink;
+
+linksCont.addEventListener('input', e => {
+  if (e.target.matches('.link-url, .custom-title-field, select')) {
+    syncLinksFromForm();
+  }
+});
+
+linksCont.addEventListener('click', e => {
+  if (e.target.classList.contains('remove-btn')) {
+    const idx = e.target.getAttribute('data-idx');
+    if (idx !== null) {
+      syncLinksFromForm();
+      const index = parseInt(idx, 10);
+      if (!isNaN(index) && index < data.links.length) {
+        data.links.splice(index, 1);
+        renderLinks();
+      }
+    }
+  }
+});
+
+copyLiveBtn.onclick = copyLive;
+copyEditBtn.onclick = copyEdit;
+viewToggleBtn.onclick = toggleView;
+
+window.addEventListener('hashchange', loadFromURL);
+window.addEventListener('popstate', loadFromURL);
+
+// ─── Initialize ─────────────────────────────────
+if (!window.location.hash) {
+  data.links = [{ platform: 'Custom URL', title: '', url: '', customTitle: '' }];
+}
+loadFromURL();
+</script>
+</body>
+</html>
