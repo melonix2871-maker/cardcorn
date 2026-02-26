@@ -164,6 +164,8 @@
       background: #10b981; 
       color: white;
       font-weight: bold;
+      font-size: 1.1rem;
+      padding: 16px;
     }
     #qr-generate-btn:hover { background: #059669; }
 
@@ -210,7 +212,7 @@
       font-weight: 600;
     }
     
-    /* QR container */
+    /* QR container - always visible when generated */
     .qr-container {
       margin: 20px 0 10px;
       text-align: center;
@@ -218,9 +220,15 @@
       padding: 20px;
       border-radius: 12px;
       display: none;
+      border: 2px solid #10b981;
     }
     .qr-container.show {
       display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .qr-container canvas {
       background: white;
@@ -228,11 +236,21 @@
       border-radius: 12px;
       max-width: 200px;
       margin: 0 auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
     .qr-container p {
       color: #94a3b8;
       margin-bottom: 10px;
       font-size: 0.95rem;
+    }
+    .qr-url {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #a5b4fc;
+      word-break: break-all;
+      background: #1e293b;
+      padding: 8px;
+      border-radius: 6px;
     }
     
     #notification {
@@ -302,6 +320,18 @@
       font-size: 0.8rem;
       color: #cbd5e1;
     }
+
+    /* Live URL badge */
+    .live-badge {
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      display: inline-block;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body id="main-body">
@@ -345,17 +375,20 @@
 
   <button id="add-link-btn">+ Add Link</button>
 
-  <!-- Action row - updated button -->
-  <div class="action-row">
-    <button id="copy-live-btn">📋 Copy Live URL</button>
-    <button id="copy-edit-btn">✏️ Copy Edit URL</button>
-    <button id="qr-generate-btn">📱 Generate QR Code on Live URL</button>
+  <!-- Single QR Generate Button -->
+  <button id="qr-generate-btn">📱 Generate QR Code for Live URL</button>
+
+  <!-- QR Code container - displays the generated QR -->
+  <div id="qr-container" class="qr-container">
+    <p>🔲 Your Live URL QR Code</p>
+    <div id="qr-code"></div>
+    <div class="qr-url" id="qr-url-display"></div>
   </div>
 
-  <!-- QR Code container -->
-  <div id="qr-container" class="qr-container">
-    <p>🔲 Scan to visit live page</p>
-    <div id="qr-code"></div>
+  <!-- Hidden copy buttons (kept for functionality) -->
+  <div style="display: none;">
+    <button id="copy-live-btn">📋 Copy Live URL</button>
+    <button id="copy-edit-btn">✏️ Copy Edit URL</button>
   </div>
 </div>
 
@@ -413,6 +446,7 @@ const copyEditBtn = document.getElementById('copy-edit-btn');
 const qrGenerateBtn = document.getElementById('qr-generate-btn');
 const qrContainer = document.getElementById('qr-container');
 const qrDiv       = document.getElementById('qr-code');
+const qrUrlDisplay = document.getElementById('qr-url-display');
 const notifyEl    = document.getElementById('notification');
 
 // ─── Helper to update preview visibility ────────
@@ -652,6 +686,7 @@ async function generateQR(url) {
       margin: 2,
       color: { dark: '#000000', light: '#ffffff' }
     });
+    qrUrlDisplay.textContent = url;
     qrContainer.classList.add('show');
     return true;
   } catch (err) {
@@ -701,54 +736,7 @@ function addNewLink() {
   }, 30);
 }
 
-async function copyLive() {
-  syncFullData();
-  if (!data.name && data.links.length === 0 && !data.photo) {
-    notify("Add some content first", true);
-    return;
-  }
-  
-  try {
-    const url = await buildLiveUrl();
-    const copied = await copyToClipboard(url);
-    await generateQR(url);
-    
-    if (copied) {
-      notify("✅ Live URL copied & QR generated");
-    } else {
-      notify("📱 QR generated (copy manually)", false);
-    }
-  } catch (err) {
-    console.error('Copy live error:', err);
-    notify("❌ Failed to generate URL - please try again", true);
-  }
-}
-
-async function copyEdit() {
-  syncFullData();
-  if (!data.name && data.links.length === 0 && !data.photo) {
-    notify("Add some content first", true);
-    return;
-  }
-  
-  try {
-    const url = await buildEditUrl();
-    const copied = await copyToClipboard(url);
-    const liveUrl = await buildLiveUrl();
-    await generateQR(liveUrl);
-    
-    if (copied) {
-      notify("✅ Edit URL copied & QR generated");
-    } else {
-      notify("📱 QR generated for live page", false);
-    }
-  } catch (err) {
-    console.error('Copy edit error:', err);
-    notify("❌ Failed to generate URL - please try again", true);
-  }
-}
-
-// New function: Generate QR Code on Live URL
+// Main function: Generate QR Code for Live URL
 async function generateQRForLiveUrl() {
   syncFullData();
   if (!data.name && data.links.length === 0 && !data.photo) {
@@ -763,6 +751,45 @@ async function generateQRForLiveUrl() {
   } catch (err) {
     console.error('QR generation error:', err);
     notify("❌ Failed to generate QR code", true);
+  }
+}
+
+// Keep these for functionality but hide them
+async function copyLive() {
+  syncFullData();
+  if (!data.name && data.links.length === 0 && !data.photo) {
+    notify("Add some content first", true);
+    return;
+  }
+  
+  try {
+    const url = await buildLiveUrl();
+    const copied = await copyToClipboard(url);
+    
+    if (copied) {
+      notify("✅ Live URL copied to clipboard");
+    }
+  } catch (err) {
+    console.error('Copy live error:', err);
+  }
+}
+
+async function copyEdit() {
+  syncFullData();
+  if (!data.name && data.links.length === 0 && !data.photo) {
+    notify("Add some content first", true);
+    return;
+  }
+  
+  try {
+    const url = await buildEditUrl();
+    const copied = await copyToClipboard(url);
+    
+    if (copied) {
+      notify("✅ Edit URL copied to clipboard");
+    }
+  } catch (err) {
+    console.error('Copy edit error:', err);
   }
 }
 
@@ -923,9 +950,12 @@ linksCont.addEventListener('click', e => {
   }
 });
 
+// Main QR generate button
+qrGenerateBtn.onclick = generateQRForLiveUrl;
+
+// Hidden buttons (keep functionality)
 copyLiveBtn.onclick = copyLive;
 copyEditBtn.onclick = copyEdit;
-qrGenerateBtn.onclick = generateQRForLiveUrl;
 
 window.addEventListener('hashchange', loadFromURL);
 window.addEventListener('popstate', loadFromURL);
