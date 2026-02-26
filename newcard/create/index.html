@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LinkTree Pro · QR Generator</title>
   <!-- QR Code library -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -677,22 +677,51 @@ async function buildEditUrl() {
   }
 }
 
-// ─── QR Generation ──────────────────────────────
+// ─── QR Generation using qrcode-generator ────────
 async function generateQR(url) {
   try {
     qrDiv.innerHTML = '';
-    await QRCode.toCanvas(qrDiv, url, {
-      width: 200,
-      margin: 2,
-      color: { dark: '#000000', light: '#ffffff' }
+    
+    // Create QR code with error correction level H (highest)
+    // and version 10 (allows more data)
+    const qr = qrcode(10, 'H');
+    qr.addData(url);
+    qr.make();
+    
+    // Generate as SVG (scales better)
+    const svg = qr.createSvgTag({
+      cellSize: 4,
+      margin: 2
     });
+    
+    qrDiv.innerHTML = svg;
+    qrDiv.querySelector('svg').style.width = '200px';
+    qrDiv.querySelector('svg').style.height = '200px';
+    
     qrUrlDisplay.textContent = url;
     qrContainer.classList.add('show');
     return true;
   } catch (err) {
     console.error('QR error:', err);
-    qrContainer.classList.remove('show');
-    return false;
+    
+    // Fallback: try with lower error correction
+    try {
+      qrDiv.innerHTML = '';
+      const qr = qrcode(0, 'L');
+      qr.addData(url);
+      qr.make();
+      const svg = qr.createSvgTag({ cellSize: 4, margin: 2 });
+      qrDiv.innerHTML = svg;
+      qrDiv.querySelector('svg').style.width = '200px';
+      qrDiv.querySelector('svg').style.height = '200px';
+      qrUrlDisplay.textContent = url;
+      qrContainer.classList.add('show');
+      return true;
+    } catch (fallbackErr) {
+      console.error('Fallback QR error:', fallbackErr);
+      qrContainer.classList.remove('show');
+      return false;
+    }
   }
 }
 
@@ -968,3 +997,4 @@ loadFromURL();
 </script>
 </body>
 </html>
+
