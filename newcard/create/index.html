@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LinkTree Pro · hide preview row when empty</title>
+  <title>LinkTree Pro · QR Generator</title>
   <!-- QR Code library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
@@ -160,8 +160,12 @@
     .action-row button:hover {
       background: #3a4055;
     }
-    #view-toggle-btn { background: #4f46e5; color: white; }
-    #view-toggle-btn:hover { background: #4338ca; }
+    #qr-generate-btn { 
+      background: #10b981; 
+      color: white;
+      font-weight: bold;
+    }
+    #qr-generate-btn:hover { background: #059669; }
 
     .link-row {
       display: flex;
@@ -303,7 +307,7 @@
 <body id="main-body">
 
 <div class="card" id="editor">
-  <h2>✨ LinkTree Pro</h2>
+  <h2>✨ LinkTree Pro · QR Generator</h2>
 
   <!-- Upload section with labels -->
   <div class="upload-group">
@@ -341,11 +345,11 @@
 
   <button id="add-link-btn">+ Add Link</button>
 
-  <!-- Action row -->
+  <!-- Action row - updated button -->
   <div class="action-row">
     <button id="copy-live-btn">📋 Copy Live URL</button>
     <button id="copy-edit-btn">✏️ Copy Edit URL</button>
-    <button id="view-toggle-btn">👁️ View / Edit</button>
+    <button id="qr-generate-btn">📱 Generate QR Code on Live URL</button>
   </div>
 
   <!-- QR Code container -->
@@ -406,7 +410,7 @@ const linksCont   = document.getElementById('links-container');
 const addBtn      = document.getElementById('add-link-btn');
 const copyLiveBtn = document.getElementById('copy-live-btn');
 const copyEditBtn = document.getElementById('copy-edit-btn');
-const viewToggleBtn= document.getElementById('view-toggle-btn');
+const qrGenerateBtn = document.getElementById('qr-generate-btn');
 const qrContainer = document.getElementById('qr-container');
 const qrDiv       = document.getElementById('qr-code');
 const notifyEl    = document.getElementById('notification');
@@ -744,37 +748,21 @@ async function copyEdit() {
   }
 }
 
-async function toggleView() {
-  if (editor.style.display === 'none') {
-    // Switch to editor mode
-    editor.style.display = 'block';
-    publicView.style.display = 'none';
-    bodyEl.classList.remove('public-mode');
-    bodyEl.style.backgroundImage = '';
-    
-    nameInput.value = data.name || '';
-    mottoInput.value = data.motto || '';
-    updatePreviews();
-    renderLinks();
-    
-    const hash = window.location.hash;
-    window.history.replaceState(null, '', window.location.pathname + '?action=edit' + hash);
-    
-    try {
-      const liveUrl = await buildLiveUrl();
-      await generateQR(liveUrl);
-    } catch (err) {
-      console.error('QR generation error:', err);
-    }
-  } else {
-    syncFullData();
-    if (!data.name && data.links.length === 0) {
-      notify("Nothing to preview", true);
-      return;
-    }
-    await showPublicView();
-    const hash = window.location.hash;
-    window.history.replaceState(null, '', window.location.pathname + hash);
+// New function: Generate QR Code on Live URL
+async function generateQRForLiveUrl() {
+  syncFullData();
+  if (!data.name && data.links.length === 0 && !data.photo) {
+    notify("Add some content first", true);
+    return;
+  }
+  
+  try {
+    const liveUrl = await buildLiveUrl();
+    await generateQR(liveUrl);
+    notify("✅ QR Code generated for Live URL");
+  } catch (err) {
+    console.error('QR generation error:', err);
+    notify("❌ Failed to generate QR code", true);
   }
 }
 
@@ -937,7 +925,7 @@ linksCont.addEventListener('click', e => {
 
 copyLiveBtn.onclick = copyLive;
 copyEditBtn.onclick = copyEdit;
-viewToggleBtn.onclick = toggleView;
+qrGenerateBtn.onclick = generateQRForLiveUrl;
 
 window.addEventListener('hashchange', loadFromURL);
 window.addEventListener('popstate', loadFromURL);
