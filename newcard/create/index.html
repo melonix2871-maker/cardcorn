@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LinkTree Pro · QR Generator</title>
+  <title>LinkTree Pro · hide preview row when empty</title>
   <!-- QR Code library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
@@ -160,14 +160,8 @@
     .action-row button:hover {
       background: #3a4055;
     }
-    #qr-generate-btn { 
-      background: #10b981; 
-      color: white;
-      font-weight: bold;
-      font-size: 1.1rem;
-      padding: 16px;
-    }
-    #qr-generate-btn:hover { background: #059669; }
+    #view-toggle-btn { background: #4f46e5; color: white; }
+    #view-toggle-btn:hover { background: #4338ca; }
 
     .link-row {
       display: flex;
@@ -212,7 +206,7 @@
       font-weight: 600;
     }
     
-    /* QR container - always visible when generated */
+    /* QR container */
     .qr-container {
       margin: 20px 0 10px;
       text-align: center;
@@ -220,15 +214,9 @@
       padding: 20px;
       border-radius: 12px;
       display: none;
-      border: 2px solid #10b981;
     }
     .qr-container.show {
       display: block;
-      animation: fadeIn 0.3s ease;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
     }
     .qr-container canvas {
       background: white;
@@ -236,21 +224,11 @@
       border-radius: 12px;
       max-width: 200px;
       margin: 0 auto;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
     .qr-container p {
       color: #94a3b8;
       margin-bottom: 10px;
       font-size: 0.95rem;
-    }
-    .qr-url {
-      margin-top: 12px;
-      font-size: 0.8rem;
-      color: #a5b4fc;
-      word-break: break-all;
-      background: #1e293b;
-      padding: 8px;
-      border-radius: 6px;
     }
     
     #notification {
@@ -320,24 +298,12 @@
       font-size: 0.8rem;
       color: #cbd5e1;
     }
-
-    /* Live URL badge */
-    .live-badge {
-      background: #10b981;
-      color: white;
-      padding: 4px 12px;
-      border-radius: 100px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      display: inline-block;
-      margin-left: 8px;
-    }
   </style>
 </head>
 <body id="main-body">
 
 <div class="card" id="editor">
-  <h2>✨ LinkTree Pro · QR Generator</h2>
+  <h2>✨ LinkTree Pro</h2>
 
   <!-- Upload section with labels -->
   <div class="upload-group">
@@ -375,20 +341,17 @@
 
   <button id="add-link-btn">+ Add Link</button>
 
-  <!-- Single QR Generate Button -->
-  <button id="qr-generate-btn">📱 Generate QR Code for Live URL</button>
-
-  <!-- QR Code container - displays the generated QR -->
-  <div id="qr-container" class="qr-container">
-    <p>🔲 Your Live URL QR Code</p>
-    <div id="qr-code"></div>
-    <div class="qr-url" id="qr-url-display"></div>
-  </div>
-
-  <!-- Hidden copy buttons (kept for functionality) -->
-  <div style="display: none;">
+  <!-- Action row -->
+  <div class="action-row">
     <button id="copy-live-btn">📋 Copy Live URL</button>
     <button id="copy-edit-btn">✏️ Copy Edit URL</button>
+    <button id="view-toggle-btn">👁️ View / Edit</button>
+  </div>
+
+  <!-- QR Code container -->
+  <div id="qr-container" class="qr-container">
+    <p>🔲 Scan to visit live page</p>
+    <div id="qr-code"></div>
   </div>
 </div>
 
@@ -443,10 +406,9 @@ const linksCont   = document.getElementById('links-container');
 const addBtn      = document.getElementById('add-link-btn');
 const copyLiveBtn = document.getElementById('copy-live-btn');
 const copyEditBtn = document.getElementById('copy-edit-btn');
-const qrGenerateBtn = document.getElementById('qr-generate-btn');
+const viewToggleBtn= document.getElementById('view-toggle-btn');
 const qrContainer = document.getElementById('qr-container');
 const qrDiv       = document.getElementById('qr-code');
-const qrUrlDisplay = document.getElementById('qr-url-display');
 const notifyEl    = document.getElementById('notification');
 
 // ─── Helper to update preview visibility ────────
@@ -686,7 +648,6 @@ async function generateQR(url) {
       margin: 2,
       color: { dark: '#000000', light: '#ffffff' }
     });
-    qrUrlDisplay.textContent = url;
     qrContainer.classList.add('show');
     return true;
   } catch (err) {
@@ -736,25 +697,6 @@ function addNewLink() {
   }, 30);
 }
 
-// Main function: Generate QR Code for Live URL
-async function generateQRForLiveUrl() {
-  syncFullData();
-  if (!data.name && data.links.length === 0 && !data.photo) {
-    notify("Add some content first", true);
-    return;
-  }
-  
-  try {
-    const liveUrl = await buildLiveUrl();
-    await generateQR(liveUrl);
-    notify("✅ QR Code generated for Live URL");
-  } catch (err) {
-    console.error('QR generation error:', err);
-    notify("❌ Failed to generate QR code", true);
-  }
-}
-
-// Keep these for functionality but hide them
 async function copyLive() {
   syncFullData();
   if (!data.name && data.links.length === 0 && !data.photo) {
@@ -765,12 +707,16 @@ async function copyLive() {
   try {
     const url = await buildLiveUrl();
     const copied = await copyToClipboard(url);
+    await generateQR(url);
     
     if (copied) {
-      notify("✅ Live URL copied to clipboard");
+      notify("✅ Live URL copied & QR generated");
+    } else {
+      notify("📱 QR generated (copy manually)", false);
     }
   } catch (err) {
     console.error('Copy live error:', err);
+    notify("❌ Failed to generate URL - please try again", true);
   }
 }
 
@@ -784,12 +730,51 @@ async function copyEdit() {
   try {
     const url = await buildEditUrl();
     const copied = await copyToClipboard(url);
+    const liveUrl = await buildLiveUrl();
+    await generateQR(liveUrl);
     
     if (copied) {
-      notify("✅ Edit URL copied to clipboard");
+      notify("✅ Edit URL copied & QR generated");
+    } else {
+      notify("📱 QR generated for live page", false);
     }
   } catch (err) {
     console.error('Copy edit error:', err);
+    notify("❌ Failed to generate URL - please try again", true);
+  }
+}
+
+async function toggleView() {
+  if (editor.style.display === 'none') {
+    // Switch to editor mode
+    editor.style.display = 'block';
+    publicView.style.display = 'none';
+    bodyEl.classList.remove('public-mode');
+    bodyEl.style.backgroundImage = '';
+    
+    nameInput.value = data.name || '';
+    mottoInput.value = data.motto || '';
+    updatePreviews();
+    renderLinks();
+    
+    const hash = window.location.hash;
+    window.history.replaceState(null, '', window.location.pathname + '?action=edit' + hash);
+    
+    try {
+      const liveUrl = await buildLiveUrl();
+      await generateQR(liveUrl);
+    } catch (err) {
+      console.error('QR generation error:', err);
+    }
+  } else {
+    syncFullData();
+    if (!data.name && data.links.length === 0) {
+      notify("Nothing to preview", true);
+      return;
+    }
+    await showPublicView();
+    const hash = window.location.hash;
+    window.history.replaceState(null, '', window.location.pathname + hash);
   }
 }
 
@@ -950,12 +935,9 @@ linksCont.addEventListener('click', e => {
   }
 });
 
-// Main QR generate button
-qrGenerateBtn.onclick = generateQRForLiveUrl;
-
-// Hidden buttons (keep functionality)
 copyLiveBtn.onclick = copyLive;
 copyEditBtn.onclick = copyEdit;
+viewToggleBtn.onclick = toggleView;
 
 window.addEventListener('hashchange', loadFromURL);
 window.addEventListener('popstate', loadFromURL);
