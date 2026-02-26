@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LinkTree Pro · QR Generator</title>
-  <!-- QR Code library -->
+  <!-- Replace with qrcode-generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -230,7 +230,7 @@
       from { opacity: 0; transform: translateY(-10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .qr-container canvas {
+    .qr-container svg {
       background: white;
       padding: 12px;
       border-radius: 12px;
@@ -682,43 +682,50 @@ async function generateQR(url) {
   try {
     qrDiv.innerHTML = '';
     
-    // Create QR code with error correction level H (highest)
-    // and version 10 (allows more data)
-    const qr = qrcode(10, 'H');
+    // Try with highest version and error correction
+    // Version 40 is the largest, H is highest error correction
+    const qr = qrcode(40, 'H');
     qr.addData(url);
     qr.make();
     
-    // Generate as SVG (scales better)
+    // Generate as SVG
     const svg = qr.createSvgTag({
       cellSize: 4,
       margin: 2
     });
     
     qrDiv.innerHTML = svg;
-    qrDiv.querySelector('svg').style.width = '200px';
-    qrDiv.querySelector('svg').style.height = '200px';
+    const svgElement = qrDiv.querySelector('svg');
+    if (svgElement) {
+      svgElement.style.width = '200px';
+      svgElement.style.height = '200px';
+    }
     
     qrUrlDisplay.textContent = url;
     qrContainer.classList.add('show');
     return true;
   } catch (err) {
-    console.error('QR error:', err);
+    console.error('QR error with high version:', err);
     
-    // Fallback: try with lower error correction
+    // Fallback: try with lower error correction but same version
     try {
       qrDiv.innerHTML = '';
-      const qr = qrcode(0, 'L');
+      const qr = qrcode(40, 'L');
       qr.addData(url);
       qr.make();
       const svg = qr.createSvgTag({ cellSize: 4, margin: 2 });
       qrDiv.innerHTML = svg;
-      qrDiv.querySelector('svg').style.width = '200px';
-      qrDiv.querySelector('svg').style.height = '200px';
+      const svgElement = qrDiv.querySelector('svg');
+      if (svgElement) {
+        svgElement.style.width = '200px';
+        svgElement.style.height = '200px';
+      }
       qrUrlDisplay.textContent = url;
       qrContainer.classList.add('show');
       return true;
     } catch (fallbackErr) {
-      console.error('Fallback QR error:', fallbackErr);
+      console.error('Both QR attempts failed:', fallbackErr);
+      notify('URL too long for QR code', true);
       qrContainer.classList.remove('show');
       return false;
     }
@@ -997,4 +1004,3 @@ loadFromURL();
 </script>
 </body>
 </html>
-
